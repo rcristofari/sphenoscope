@@ -8,7 +8,6 @@ from MainGui import MainGui
 log = logging.getLogger('main')
 
 # logger to pass to the MQTT library
-colors = {"Mer": "#08098C", "Terre": "#FE8D03"}
 mqtt_log = logging.getLogger('mqtt')
 mqtt_log.setLevel(logging.WARNING)
 mqtt_rc_codes = ['Success', 'Incorrect protocol version', 'Invalid client identifier', 'Server unavailable', 'Bad username or password', 'Not authorized']
@@ -34,7 +33,6 @@ class MainApp(object):
         self.client.on_message = self.on_message
 
         # Define the place indices
-        self.loc = {"Mer": 0, "Terre": 1}
         self.gates = {"Bretelle Sud": 2, "Autoroute": 0, "Prado": 1, "Manchoduc": 3}
 
         self.window = MainGui(self)
