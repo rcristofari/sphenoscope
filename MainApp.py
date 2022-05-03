@@ -79,7 +79,7 @@ class MainApp(object):
                 sex = row[5]
                 alarm = row[6]
                 contents = [passage, loc, datetime.strftime(t, "%Y-%m-%d %H:%M:%S"), rfid, name, rfid_year, sex, alarm]
-                self.window.write(contents)
+                self.window.tab_widget.liveview_tab.write(contents)
 
     def connect_to_mqtt_server(self, hostname, portnum):
         if self.client.is_connected():
@@ -120,7 +120,7 @@ class MainApp(object):
     def on_message(self, client, userdata, msg):
        print(msg.payload)
        contents = self.parse_nmea(msg.payload)
-       self.window.write(contents)
+       self.window.tab_widget.liveview_tab.write(contents)
 
     def parse_nmea(self, payload):
         sentence = payload.decode("UTF-8").strip("\n")

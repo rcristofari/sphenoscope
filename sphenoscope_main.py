@@ -9,5 +9,6 @@ from MainApp import MainApp
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
     main = MainApp()
+    #main = MainGui()
     app.exec_()
 #----------------------------------------------------------------------------------------------------------------------#
