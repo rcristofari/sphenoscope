@@ -1,11 +1,14 @@
 from PyQt5 import QtCore, QtGui, QtWidgets, QtMultimedia
 from AntennaPanel import AntennaPanel
+from SystemMonitorPanel import SystemMonitorPanel
 
 class MainGui(QtWidgets.QMainWindow):
 
     def __init__(self, main):
 
         super().__init__()
+
+        self.setWindowTitle("Sphenoscope")
 
         self.main = main
 
@@ -18,6 +21,8 @@ class MainGui(QtWidgets.QMainWindow):
         self.tab_widget = TabWidget(main)
         self.setCentralWidget(self.tab_widget)
 
+        #--------------------------------------------------------------------------------------------------------------#
+        # Add menu bar
         self.menubar = QtWidgets.QMenuBar()
         self.menubar.setGeometry(QtCore.QRect(0, 0, 1567, 29))
         self.fileMenu = QtWidgets.QMenu("&File", self)
@@ -37,6 +42,13 @@ class MainGui(QtWidgets.QMainWindow):
         self.aboutMenu.addAction(self.versionAction)
 
         self.setMenuBar(self.menubar)
+
+        #--------------------------------------------------------------------------------------------------------------#
+        # Add status bar
+
+        self.statusbar = QtWidgets.QStatusBar()
+        self.statusbar.showMessage("Work in progress")
+        self.setStatusBar(self.statusbar)
 
         self.show()
 
@@ -64,7 +76,7 @@ class TabWidget(QtWidgets.QWidget):
             QTabBar::tab:selected {
                 background-color: #DDDDDD;
                 border-bottom: none;}
-                
+
             QTabBar::tab:!selected {
                 background-color: #BBBBBB;
                 margin-top: 2px;
@@ -74,16 +86,23 @@ class TabWidget(QtWidgets.QWidget):
 
         # Initialize tab screen
         self.tabs = QtWidgets.QTabWidget()
+
         self.liveview_tab = AntennaPanel(self.main, n_antennas=4)
-        self.sysmonitor_tab = QtWidgets.QWidget()
+        self.liveview_tab.setBackgroundRole(QtGui.QPalette.Window)
+        self.liveview_tab.setAutoFillBackground(True)
+
+        self.sysmonitor_tab = SystemMonitorPanel(self.main, n_antennas=4)
+        self.sysmonitor_tab.setBackgroundRole(QtGui.QPalette.Window)
+        self.sysmonitor_tab.setAutoFillBackground(True)
+
         self.colomonitor_tab = QtWidgets.QWidget()
-        self.tabs.resize(300, 200)
+        self.colomonitor_tab.setBackgroundRole(QtGui.QPalette.Window)
+        self.colomonitor_tab.setAutoFillBackground(True)
 
         # Add tabs
         self.tabs.addTab(self.liveview_tab, "LiveView")
         self.tabs.addTab(self.sysmonitor_tab, "System monitor")
         self.tabs.addTab(self.colomonitor_tab, "Colony monitor")
-
 
         # Add tabs to widget
         self.layout.addWidget(self.tabs)

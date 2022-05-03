@@ -1,4 +1,5 @@
-import os, sys, struct, time, logging, functools, queue, signal, getpass, pymysql
+import sys, logging, signal, pymysql
+from functools import wraps
 import paho.mqtt.client as mqtt
 from datetime import datetime
 from PyQt5 import QtCore, QtGui, QtWidgets, QtNetwork
@@ -11,7 +12,6 @@ log = logging.getLogger('main')
 mqtt_log = logging.getLogger('mqtt')
 mqtt_log.setLevel(logging.WARNING)
 mqtt_rc_codes = ['Success', 'Incorrect protocol version', 'Invalid client identifier', 'Server unavailable', 'Bad username or password', 'Not authorized']
-
 
 #----------------------------------------------------------------------------------------------------------------------#
 class MainApp(object):
@@ -32,13 +32,16 @@ class MainApp(object):
         self.client.on_disconnect = self.on_disconnect
         self.client.on_message = self.on_message
 
+        # Initialize the database connection:
+        self.__db = MysqlConnect(usr="root", pwd="UlaqKSZRFR9?wy", db="antavia_testing")
+
         # Define the place indices
         self.gates = {"Bretelle Sud": 2, "Autoroute": 0, "Prado": 1, "Manchoduc": 3}
         self.gate_order = {0: "Autoroute", 1: "Prado", 2: "Bretelle Sud", 3: "Manchoduc"}
 
         self.window = MainGui(self)
 
-        self.get_history_from_mysql("127.0.0.1", "root", "UlaqKSZRFR9?wy")
+        self.get_history_from_mysql()
 
     def app_is_exiting(self):
         if self.client.is_connected():
@@ -50,15 +53,11 @@ class MainApp(object):
         self.app_is_exiting()
         sys.exit(0)
 
-    def get_history_from_mysql(self, host, usr, pwd, db="antavia_testing", port=3306):
-        result = None
-        try:
-            db = pymysql.connect(host=host, user=usr, passwd=pwd, db=db, port=port)
-            cursor = db.cursor()
-            cursor.execute("select d.description, d.date_arrivee, a.identifiant_transpondeur, a.nom, a.date_transpondage, a.sexe, a.son_suivi from animaux a, (select a.description, d.date_arrivee, d.animaux_id from detections d, antennes a where d.antenne_id = a.id order by d.date_arrivee desc limit 200) d where a.id = d.animaux_id;")
-            result = cursor.fetchall()
-        except pymysql.OperationalError:
-            pass
+    def get_history_from_mysql(self):
+
+        query = "select d.description, d.date_arrivee, a.identifiant_transpondeur, a.nom, a.date_transpondage, a.sexe, a.son_suivi from animaux a, (select a.description, d.date_arrivee, d.animaux_id from detections d, antennes a where d.antenne_id = a.id order by d.date_arrivee desc limit 200) d where a.id = d.animaux_id;"
+        result = self.__db.fetchall(query)
+
         if result:
             for row in result:
                 if row[0].endswith("Terre"):
@@ -120,12 +119,20 @@ class MainApp(object):
         log.debug("disconnected")
 
     def on_message(self, client, userdata, msg):
-       print(msg.payload)
-       contents = self.parse_nmea(msg.payload)
-       self.window.tab_widget.liveview_tab.write(contents)
+        sentence = msg.payload.decode("UTF-8").strip("\n")
+        print(sentence)
+        contents = self.parse_nmea(msg.payload)
+
+        if sentence.startswith("$RFID"):
+            self.window.tab_widget.liveview_tab.write(contents)
+
+        elif sentence.startswith("$HERTZ"):
+            self.window.tab_widget.sysmonitor_tab.write(contents)
 
     def parse_nmea(self, payload):
+
         sentence = payload.decode("UTF-8").strip("\n")
+
         if sentence.startswith("$RFID"):
             line = sentence.split(",")
             antenna = line[1]
@@ -149,3 +156,71 @@ class MainApp(object):
                 passage = antenna[:-4]
                 loc = "Mer"
             return [passage, loc, datetime.strftime(t, "%Y-%m-%d %H:%M:%S"), rfid, name, rfid_year, sex, alarm]
+
+        elif sentence.startswith("$HERTZ"):
+            line = sentence.split(",")
+            out = []
+            for i in range(8):
+                try:
+                    out.append(float(line[i+1].strip("'").strip()))
+                except ValueError:
+                    out.append(0)
+            return out
+
+
+class MysqlConnect(object):
+
+    def __init__(self, usr, pwd, host='localhost', db='antavia_cro', port=3306):
+        self.__usr = usr
+        self.__pwd = pwd
+        self.__host = host
+        self.__dbname = db
+        self.__port = int(port)
+        self.__db = None
+        self.__cursor = None
+        self.connect()
+
+    def connect(self):
+        try:
+            self.__db = pymysql.connect(host=self.__host, user=self.__usr, passwd=self.__pwd, db=self.__dbname, port=self.__port)
+            self.__cursor = self.__db.cursor()
+            if self.__db.open:
+                logging.info(f"Successfully established connection to {self.__dbname} on {self.__host}")
+            else:
+                logging.error(f"No connexion to {self.__dbname} on {self.__host}")
+        except pymysql.OperationalError:
+            logging.exception(f"Failed to connect to {self.__host}")
+
+    def _reconnect(func):
+        @wraps(func)
+        def rec(self, *args, **kwargs):
+            try:
+                result = func(self, *args, **kwargs)
+                return (result)
+            except pms.err.OperationalError as e:
+                logging.exception("Exception occurred (pymysql)")
+                if e[0] == 2013:
+                    self.connect()
+                    result = func(self, *args, **kwargs)
+                    return result
+        return rec
+
+    @_reconnect
+    def fetchall(self, sql):
+        res = None
+        try:
+            self.__cursor.execute(sql)
+            res = self.__cursor.fetchall()
+            return res
+        except Exception as ex:
+            logging.exception(ex)
+
+    @_reconnect
+    def fetchone(self, sql):
+        res = None
+        try:
+            self.__cursor.execute(sql)
+            res = self.__cursor.fetchone()
+            return res
+        except Exception as ex:
+            logging.exception(ex)

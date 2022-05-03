@@ -9,9 +9,6 @@ class AntennaPanel(QtWidgets.QMainWindow):
         super(QtWidgets.QMainWindow, self).__init__(*args, **kwargs)
 
         self.main = main
-
-        self.setWindowTitle("Sphenoscope")
-
         #--------------------------------------------------------------------------------------------------------------#
         # Don't hard-code all that, set it up in a conf file (same for land/sea colors below)
         # The colors for Land and Sea
@@ -23,7 +20,6 @@ class AntennaPanel(QtWidgets.QMainWindow):
         #--------------------------------------------------------------------------------------------------------------#
 
         self.n_antennas = n_antennas
-
         self._setupUi(self)
 
         self.console_queue = queue.Queue()
@@ -38,6 +34,8 @@ class AntennaPanel(QtWidgets.QMainWindow):
     def _setupUi(self, MainWindow):
 
         self.AntennaWindow = QtWidgets.QWidget(MainWindow)
+        self.AntennaWindow.setBackgroundRole(QtGui.QPalette.Dark)
+        self.setBackgroundRole(QtGui.QPalette.Dark)
 
         self.verticalLayout = QtWidgets.QVBoxLayout(self.AntennaWindow)
         self.verticalLayout.setContentsMargins(36, 12, 36, 12)
@@ -60,11 +58,6 @@ class AntennaPanel(QtWidgets.QMainWindow):
         #--------------------------------------------------------------------------------------------------------------#
         self.verticalLayout.addLayout(self.MainGrid)
         MainWindow.setCentralWidget(self.AntennaWindow)
-
-        #--------------------------------------------------------------------------------------------------------------#
-        self.statusbar = QtWidgets.QStatusBar(MainWindow)
-        MainWindow.setStatusBar(self.statusbar)
-
 
     def highlight_row(self, rfid_table, row_id, alarm_id):
         try:
@@ -142,6 +135,7 @@ class AntennaPanel(QtWidgets.QMainWindow):
         portnum = 1883
         self.main.connect_to_mqtt_server(hostname, portnum)
 
+
 class BlinkingTextBox(QtWidgets.QTextEdit):
 
     def __init__(self, parent=None, land_or_sea="land"):
@@ -187,7 +181,7 @@ class AntennaView(QtWidgets.QGridLayout):
         self.setSpacing(12)
 
         self.antenna_name = QtWidgets.QLabel(mainWindow)
-        self.antenna_name.setText("<html><head/><body><p align=\"center\"><span style=\" font-size:18pt; font-weight:600;\">" + antenna_name.upper() + "</span></p></body></html>")
+        self.antenna_name.setText("<html><head/><body><p align=\"center\"><span style=\" color:#000000; font-size:18pt; font-weight:600;\">" + antenna_name.upper() + "</span></p></body></html>")
         self.addWidget(self.antenna_name, 0, 0, 1, 2)
 
         self.sea_antenna = BlinkingTextBox(mainWindow, land_or_sea="sea")
