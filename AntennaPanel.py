@@ -37,8 +37,6 @@ class AntennaPanel(QtWidgets.QMainWindow):
 
     def _setupUi(self, MainWindow):
 
-        #MainWindow.resize(1567, 846)
-
         self.AntennaWindow = QtWidgets.QWidget(MainWindow)
 
         self.verticalLayout = QtWidgets.QVBoxLayout(self.AntennaWindow)
@@ -56,7 +54,7 @@ class AntennaPanel(QtWidgets.QMainWindow):
             yx = f'{i:02b}'
             y = int(yx[0])
             x = int(yx[1])
-            self.antenna_views.append(AntennaView(self.AntennaWindow))
+            self.antenna_views.append(AntennaView(self.AntennaWindow, self.main.gate_order[i]))
             self.MainGrid.addLayout(self.antenna_views[i], y, x, 1, 1)
 
         #--------------------------------------------------------------------------------------------------------------#
@@ -64,33 +62,9 @@ class AntennaPanel(QtWidgets.QMainWindow):
         MainWindow.setCentralWidget(self.AntennaWindow)
 
         #--------------------------------------------------------------------------------------------------------------#
-        # self.menubar = QtWidgets.QMenuBar(MainWindow)
-        # self.menubar.setGeometry(QtCore.QRect(0, 0, 1567, 29))
-        # self.fileMenu = QtWidgets.QMenu("&File", self)
-        # self.menubar.addMenu(self.fileMenu)
-        # self.editMenu = QtWidgets.QMenu("&Edit", self)
-        # self.menubar.addMenu(self.editMenu)
-        # self.aboutMenu = QtWidgets.QMenu("&About", self)
-        # self.menubar.addMenu(self.aboutMenu)
-        #
-        # self.exitAction = QtWidgets.QAction("&Exit", self)
-        # self.fileMenu.addAction(self.exitAction)
-        # self.alarmsAction = QtWidgets.QAction("&Alarms", self)
-        # self.editMenu.addAction(self.alarmsAction)
-        # self.settingsAction = QtWidgets.QAction("&Settings", self)
-        # self.editMenu.addAction(self.settingsAction)
-        # self.versionAction = QtWidgets.QAction("&Version", self)
-        # self.aboutMenu.addAction(self.versionAction)
-        #
-        # MainWindow.setMenuBar(self.menubar)
-
-        #--------------------------------------------------------------------------------------------------------------#
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
         MainWindow.setStatusBar(self.statusbar)
 
-        #--------------------------------------------------------------------------------------------------------------#
-        self.retranslateUi(MainWindow)
-        QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def highlight_row(self, rfid_table, row_id, alarm_id):
         try:
@@ -168,48 +142,6 @@ class AntennaPanel(QtWidgets.QMainWindow):
         portnum = 1883
         self.main.connect_to_mqtt_server(hostname, portnum)
 
-
-    def retranslateUi(self, MainWindow):
-        _translate = QtCore.QCoreApplication.translate
-
-        MainWindow.setWindowTitle(_translate("Sphenoscope", "Sphenoscope"))
-
-        gates = {2: "Bretelle Sud", 0: "Autoroute", 1: "Prado", 3: "Manchoduc"} # Somehow this needs to be redefined here - work it out
-
-        for i in range(self.n_antennas):
-
-            this_antenna_name = gates[i]
-
-            self.antenna_views[i].antenna_name.setText(_translate("MainWindow",
-                                                              "<html><head/><body><p align=\"center\"><span style=\" font-size:18pt; font-weight:600;\">" + this_antenna_name.upper() + "</span></p></body></html>"))
-            self.antenna_views[i].land_antenna.setHtml(_translate("MainWindow",
-                                                              "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
-                                                              "<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
-                                                              "p, li { white-space: pre-wrap; }\n"
-                                                              "</style></head><body style=\" font-family:\'Cantarell\'; font-size:14pt; font-weight:600; font-style:normal;\">\n"
-                                                              "<p align=\"center\" style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-weight:400;\">Waiting...</span></p></body></html>"))
-            item = self.antenna_views[i].rfid_table.horizontalHeaderItem(0)
-            item.setText(_translate("MainWindow", "T/M"))
-            item = self.antenna_views[i].rfid_table.horizontalHeaderItem(1)
-            item.setText(_translate("MainWindow", "Time"))
-            item = self.antenna_views[i].rfid_table.horizontalHeaderItem(2)
-            item.setText(_translate("MainWindow", "Name"))
-            item = self.antenna_views[i].rfid_table.horizontalHeaderItem(3)
-            item.setText(_translate("MainWindow", "RFID"))
-            item = self.antenna_views[i].rfid_table.horizontalHeaderItem(4)
-            item.setText(_translate("MainWindow", "Sex"))
-            item = self.antenna_views[i].rfid_table.horizontalHeaderItem(5)
-            item.setText(_translate("MainWindow", "Year"))
-            item = self.antenna_views[i].rfid_table.horizontalHeaderItem(6)
-            item.setText(_translate("MainWindow", "Alarm"))
-            self.antenna_views[i].sea_antenna.setHtml(_translate("MainWindow",
-                                                             "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
-                                                             "<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
-                                                             "p, li { white-space: pre-wrap; }\n"
-                                                             "</style></head><body style=\" font-family:\'Cantarell\'; font-size:14pt; font-weight:600; font-style:normal;\">\n"
-                                                             "<p align=\"center\" style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-weight:400;\">Waiting...</span></p></body></html>"))
-
-
 class BlinkingTextBox(QtWidgets.QTextEdit):
 
     def __init__(self, parent=None, land_or_sea="land"):
@@ -248,13 +180,14 @@ class BlinkingTextBox(QtWidgets.QTextEdit):
 
 class AntennaView(QtWidgets.QGridLayout):
 
-    def __init__(self, mainWindow):
+    def __init__(self, mainWindow, antenna_name):
 
         super().__init__()
 
         self.setSpacing(12)
 
         self.antenna_name = QtWidgets.QLabel(mainWindow)
+        self.antenna_name.setText("<html><head/><body><p align=\"center\"><span style=\" font-size:18pt; font-weight:600;\">" + antenna_name.upper() + "</span></p></body></html>")
         self.addWidget(self.antenna_name, 0, 0, 1, 2)
 
         self.sea_antenna = BlinkingTextBox(mainWindow, land_or_sea="sea")
@@ -303,25 +236,14 @@ class AntennaView(QtWidgets.QGridLayout):
         self.rfid_table.setGridStyle(QtCore.Qt.DotLine)
         self.rfid_table.setColumnCount(7)
         self.rfid_table.setRowCount(0)
-        item = QtWidgets.QTableWidgetItem()
-        item.setTextAlignment(QtCore.Qt.AlignCenter)
-        item.setFont(font)
-        self.rfid_table.setHorizontalHeaderItem(0, item)
-        item = QtWidgets.QTableWidgetItem()
-        self.rfid_table.setHorizontalHeaderItem(1, item)
-        item = QtWidgets.QTableWidgetItem()
-        self.rfid_table.setHorizontalHeaderItem(2, item)
-        item = QtWidgets.QTableWidgetItem()
-        self.rfid_table.setHorizontalHeaderItem(3, item)
-        item = QtWidgets.QTableWidgetItem()
-        item.setTextAlignment(QtCore.Qt.AlignCenter)
-        self.rfid_table.setHorizontalHeaderItem(4, item)
-        item = QtWidgets.QTableWidgetItem()
-        item.setTextAlignment(QtCore.Qt.AlignCenter)
-        self.rfid_table.setHorizontalHeaderItem(5, item)
-        item = QtWidgets.QTableWidgetItem()
-        item.setTextAlignment(QtCore.Qt.AlignCenter)
-        self.rfid_table.setHorizontalHeaderItem(6, item)
+
+        labels = ["Loc", "Time", "Name", "RFID", "Sex", "Year", "Alarm"]
+        for i in range(7):
+            item = QtWidgets.QTableWidgetItem()
+            item.setTextAlignment(QtCore.Qt.AlignCenter)
+            item.setText(labels[i])
+            self.rfid_table.setHorizontalHeaderItem(i, item)
+
         self.rfid_table.horizontalHeader().setDefaultSectionSize(100)
         self.rfid_table.horizontalHeader().setMinimumSectionSize(25)
         self.rfid_table.horizontalHeader().setStretchLastSection(True)

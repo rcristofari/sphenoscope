@@ -34,6 +34,7 @@ class MainApp(object):
 
         # Define the place indices
         self.gates = {"Bretelle Sud": 2, "Autoroute": 0, "Prado": 1, "Manchoduc": 3}
+        self.gate_order = {0: "Autoroute", 1: "Prado", 2: "Bretelle Sud", 3: "Manchoduc"}
 
         self.window = MainGui(self)
 
@@ -108,6 +109,7 @@ class MainApp(object):
             else:
                 log.warning("Connection failed with unknown error %d", rc)
         client.subscribe("detections/all")
+        client.subscribe("status/all")
         return
 
     def on_log(client, userdata, level, buf):
