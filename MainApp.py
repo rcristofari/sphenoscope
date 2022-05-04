@@ -1,7 +1,7 @@
 import sys, logging, signal, pymysql
 from functools import wraps
 import paho.mqtt.client as mqtt
-from datetime import datetime
+from datetime import datetime, timedelta
 from PyQt5 import QtCore, QtGui, QtWidgets, QtNetwork
 from MainGui import MainGui
 
@@ -35,9 +35,13 @@ class MainApp(object):
         # Initialize the database connection:
         self.__db = MysqlConnect(usr="root", pwd="UlaqKSZRFR9?wy", db="antavia_testing")
 
-        # Define the place indices
+        # Define the place indices (relative to GUI frames)
         self.gates = {"Bretelle Sud": 2, "Autoroute": 0, "Prado": 1, "Manchoduc": 3}
         self.gate_order = {0: "Autoroute", 1: "Prado", 2: "Bretelle Sud", 3: "Manchoduc"}
+
+        #Antenna order in the DB (can be loaded directly from DB at init. too)
+        self.antennas = {1: "Bretelle Sud Mer", 2: "Bretelle Sud Terre", 3: "Autoroute Mer", 4: "Autoroute Terre",
+                         5: "Manchoduc Mer", 6: "Manchoduc Terre", 7: "Prado Mer", 8: "Prado Terre"}
 
         self.window = MainGui(self)
 
@@ -121,13 +125,49 @@ class MainApp(object):
     def on_message(self, client, userdata, msg):
         sentence = msg.payload.decode("UTF-8").strip("\n")
         print(sentence)
-        contents = self.parse_nmea(msg.payload)
 
         if sentence.startswith("$RFID"):
+            contents = self.parse_nmea(msg.payload)
             self.window.tab_widget.liveview_tab.write(contents)
 
         elif sentence.startswith("$HERTZ"):
+            # we also refresh detection stats
+            contents = self.get_detection_stats(sentence)
+
+            # we forward the whole data to the monitor tab
             self.window.tab_widget.sysmonitor_tab.write(contents)
+
+    def get_detection_stats(self, sentence):
+        line = sentence.split(",")
+        freqs = []
+        for i in range(8):
+            try:
+                freqs.append(float(line[i+1].strip("'").strip()))
+            except ValueError:
+                freqs.append(0)
+
+        before_15 = datetime.strftime(datetime.now() - timedelta(minutes=15), "%Y-%m-%d %H:%M:%S")
+        before_60 = datetime.strftime(datetime.now() - timedelta(minutes=60), "%Y-%m-%d %H:%M:%S")
+        before_24 = datetime.strftime(datetime.now() - timedelta(days=1), "%Y-%m-%d %H:%M:%S")
+        d_in_15 = self.__db.fetchall(f"select antenne_id, count(id) from detections where date_arrivee > '{before_15}' group by antenne_id order by antenne_id;")
+        d_in_60 = self.__db.fetchall(f"select antenne_id, count(id) from detections where date_arrivee > '{before_60}' group by antenne_id order by antenne_id;")
+        d_in_24 = self.__db.fetchall(f"select antenne_id, count(id) from detections where date_arrivee > '{before_24}' group by antenne_id order by antenne_id;")
+
+        antenna_indices = [x+1 for x in range(8)]
+        contents = [[0]*8, [0]*8, [0]*8, [0]*8]
+        for x, y in enumerate(freqs):
+            contents[0][x] = y
+        if d_in_15:
+            for (x, y) in d_in_15:
+                contents[1][x-1] = y
+        if d_in_60:
+            for (x, y) in d_in_60:
+                contents[2][x-1] = y
+        if d_in_24:
+            for (x, y) in d_in_24:
+                contents[3][x-1] = y
+        return(contents)
+
 
     def parse_nmea(self, payload):
 
@@ -156,16 +196,6 @@ class MainApp(object):
                 passage = antenna[:-4]
                 loc = "Mer"
             return [passage, loc, datetime.strftime(t, "%Y-%m-%d %H:%M:%S"), rfid, name, rfid_year, sex, alarm]
-
-        elif sentence.startswith("$HERTZ"):
-            line = sentence.split(",")
-            out = []
-            for i in range(8):
-                try:
-                    out.append(float(line[i+1].strip("'").strip()))
-                except ValueError:
-                    out.append(0)
-            return out
 
 
 class MysqlConnect(object):

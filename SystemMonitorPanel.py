@@ -25,6 +25,15 @@ class SystemMonitorPanel(QtWidgets.QMainWindow):
         self.lcd_queue = queue.Queue()
         #self.connection_requested()
 
+        # Which display panel each antenna should be displayed on
+        self.destination_displays = {1: 2, 2: 2, 3: 0, 4: 0, 5: 3, 6: 3, 7: 1, 8: 1}
+
+        self.no_alarm_style = """background-color: #39393A; color: #55917F; border-radius: 10px; buffer: 5px;"""
+        self.hertz_alarm_style = """background-color: #C5283D; color: #000000; border-radius: 10px; buffer: 5px;"""
+        self.yellow_alarm_style = """background-color: #39393A; color: #FFC857; border-radius: 10px; buffer: 5px;"""
+        self.orange_alarm_style = """background-color: #39393A; color: #E9724C; border-radius: 10px; buffer: 5px;"""
+        self.red_alarm_style = """background-color: #39393A; color: #C5283D; border-radius: 10px; buffer: 5px;"""
+
         self.console_timer = QtCore.QTimer()
         self.console_timer.timeout.connect(self._poll_console_queue)
         self.console_timer.start(50)
@@ -33,7 +42,7 @@ class SystemMonitorPanel(QtWidgets.QMainWindow):
         self.SysMonitorWindow = QtWidgets.QWidget(MainWindow)
 
         self.verticalLayout = QtWidgets.QVBoxLayout(self.SysMonitorWindow)
-        self.verticalLayout.setContentsMargins(36, 12, 36, 12)
+        self.verticalLayout.setContentsMargins(48, 24, 48, 24)
         self.verticalLayout.setObjectName("verticalLayout")
 
         self.MainGrid = QtWidgets.QGridLayout()
@@ -55,16 +64,68 @@ class SystemMonitorPanel(QtWidgets.QMainWindow):
         MainWindow.setCentralWidget(self.SysMonitorWindow)
 
     def write(self, payload):
-        print("CALLED")
         self.lcd_queue.put(payload)
 
     def _poll_console_queue(self):
+
+
         while not self.lcd_queue.empty():
             payload = self.lcd_queue.get()
             if payload:
-                for i in range(4):
-                    self.sysmonitor_views[i].sea_lcds[0].display(payload[i*2])
-                    self.sysmonitor_views[i].land_lcds[0].display(payload[i*2+1])
+
+                for i in range(8):
+
+                    display = self.destination_displays[i+1]
+
+                    if i % 2 == 1:  # it's a sea antenna:
+
+                        if payload[0][i] <= 2 or payload[0][i] >= 10:
+                            self.sysmonitor_views[display].sea_lcds[0].setStyleSheet(self.hertz_alarm_style)
+                        else:
+                            self.sysmonitor_views[display].sea_lcds[0].setStyleSheet(self.no_alarm_style)
+                        self.sysmonitor_views[display].sea_lcds[0].display(payload[0][i])
+
+                        if payload[1][i] == 0:
+                            self.sysmonitor_views[display].sea_lcds[1].setStyleSheet(self.yellow_alarm_style)
+                        else:
+                            self.sysmonitor_views[display].sea_lcds[1].setStyleSheet(self.no_alarm_style)
+                        self.sysmonitor_views[display].sea_lcds[1].display(payload[1][i])
+                        if payload[2][i] == 0:
+                            self.sysmonitor_views[display].sea_lcds[2].setStyleSheet(self.orange_alarm_style)
+                        else:
+                            self.sysmonitor_views[display].sea_lcds[2].setStyleSheet(self.no_alarm_style)
+                        self.sysmonitor_views[display].sea_lcds[2].display(payload[2][i])
+                        if payload[3][i] == 0:
+                            self.sysmonitor_views[display].sea_lcds[3].setStyleSheet(self.red_alarm_style)
+                        else:
+                            self.sysmonitor_views[display].sea_lcds[3].setStyleSheet(self.no_alarm_style)
+                        self.sysmonitor_views[display].sea_lcds[3].display(payload[3][i])
+
+                    else:
+                        if payload[0][i] <= 2 or payload[0][i] >= 10:
+                            self.sysmonitor_views[display].land_lcds[0].setStyleSheet(self.hertz_alarm_style)
+                        else:
+                            self.sysmonitor_views[display].land_lcds[0].setStyleSheet(self.no_alarm_style)
+                        self.sysmonitor_views[display].land_lcds[0].display(payload[0][i])
+
+                        if payload[1][i] == 0:
+                            self.sysmonitor_views[display].land_lcds[1].setStyleSheet(self.yellow_alarm_style)
+                        else:
+                            self.sysmonitor_views[display].land_lcds[1].setStyleSheet(self.no_alarm_style)
+                        self.sysmonitor_views[display].land_lcds[1].display(payload[1][i])
+
+                        if payload[2][i] == 0:
+                            self.sysmonitor_views[display].land_lcds[2].setStyleSheet(self.orange_alarm_style)
+                        else:
+                            self.sysmonitor_views[display].land_lcds[2].setStyleSheet(self.no_alarm_style)
+                        self.sysmonitor_views[display].land_lcds[2].display(payload[2][i])
+                        if payload[3][i] == 0:
+                            self.sysmonitor_views[display].land_lcds[3].setStyleSheet(self.red_alarm_style)
+                        else:
+                            self.sysmonitor_views[display].land_lcds[3].setStyleSheet(self.no_alarm_style)
+                        self.sysmonitor_views[display].land_lcds[3].display(payload[3][i])
+
+
 
 class SysMonitorView(QtWidgets.QGridLayout):
 
