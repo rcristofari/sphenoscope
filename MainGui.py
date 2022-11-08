@@ -1,6 +1,9 @@
-from PyQt5 import QtCore, QtGui, QtWidgets, QtMultimedia
+from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtWidgets import qApp
 from AntennaPanel import AntennaPanel
 from SystemMonitorPanel import SystemMonitorPanel
+from SettingsWindow import SettingsWindow
+from AlarmsWindow import AlarmsWindow
 
 class MainGui(QtWidgets.QMainWindow):
 
@@ -24,6 +27,8 @@ class MainGui(QtWidgets.QMainWindow):
         #--------------------------------------------------------------------------------------------------------------#
         # Add menu bar
         self.menubar = QtWidgets.QMenuBar()
+
+        # Menu headers:
         self.menubar.setGeometry(QtCore.QRect(0, 0, 1567, 29))
         self.fileMenu = QtWidgets.QMenu("&File", self)
         self.menubar.addMenu(self.fileMenu)
@@ -32,7 +37,8 @@ class MainGui(QtWidgets.QMainWindow):
         self.aboutMenu = QtWidgets.QMenu("&About", self)
         self.menubar.addMenu(self.aboutMenu)
 
-        self.exitAction = QtWidgets.QAction("&Exit", self)
+        # Menu items:
+        self.exitAction = QtWidgets.QAction("Exit", self)
         self.fileMenu.addAction(self.exitAction)
         self.alarmsAction = QtWidgets.QAction("&Alarms", self)
         self.editMenu.addAction(self.alarmsAction)
@@ -40,18 +46,38 @@ class MainGui(QtWidgets.QMainWindow):
         self.editMenu.addAction(self.settingsAction)
         self.versionAction = QtWidgets.QAction("&Version", self)
         self.aboutMenu.addAction(self.versionAction)
-
         self.setMenuBar(self.menubar)
+
+        # Define the Exit action
+        self.exitAction.setShortcut('Ctrl+Q')
+        self.exitAction.setStatusTip('Exit application')
+        self.exitAction.triggered.connect(qApp.quit)
+
+        # Define the Settings action
+        self.settingsAction.setShortcut('Ctrl+S')
+        self.settingsAction.setStatusTip('Open the Settings dialog')
+        self.settingsAction.triggered.connect(self.showSettingsWindow)
+
+        # Define the Alarms action
+        self.alarmsAction.setShortcut('Ctrl+A')
+        self.alarmsAction.setStatusTip('Open the Alarms dialog')
+        self.alarmsAction.triggered.connect(self.showAlarmsWindow)
 
         #--------------------------------------------------------------------------------------------------------------#
         # Add status bar
-
         self.statusbar = QtWidgets.QStatusBar()
         self.statusbar.showMessage("Work in progress")
         self.setStatusBar(self.statusbar)
 
         self.show()
 
+    def showSettingsWindow(self):
+        self.dialog = SettingsWindow(self.main)
+        self.dialog.show()
+
+    def showAlarmsWindow(self):
+        self.dialog = AlarmsWindow(self.main)
+        self.dialog.show()
 
 class TabWidget(QtWidgets.QWidget):
 

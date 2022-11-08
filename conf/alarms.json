@@ -1,0 +1,18 @@
+{
+    "CAPTURE": {
+        "color": "#57e389",
+        "sound": "/home/robin/sphenoscope/resources/whistle.mp3"
+    },
+    "STALK": {
+        "color": "#f5c211",
+        "sound": "/home/robin/sphenoscope/resources/playful.mp3"
+    },
+    "VISUAL CONTROL": {
+        "color": "#e66100",
+        "sound": "/home/robin/sphenoscope/resources/playful.mp3"
+    },
+    "FOLLOW": {
+        "color": "#999999",
+        "sound": "/home/robin/sphenoscope/resources/snap.mp3"
+    }
+}

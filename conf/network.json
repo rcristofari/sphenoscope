@@ -1,0 +1,15 @@
+{
+    "MYSQL": {
+        "host": "127.0.0.1",
+        "port": "3306",
+        "db": "antavia_cro_new_testing",
+        "usr": "root",
+        "pwd": ""
+    },
+    "MQTT": {
+        "host": "127.0.0.1",
+        "port": "1883",
+        "detection_chanel": "detections/all",
+        "status_chanel": "status/all"
+    }
+}

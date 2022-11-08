@@ -50,7 +50,7 @@ class SystemMonitorPanel(QtWidgets.QMainWindow):
         self.MainGrid.setVerticalSpacing(36)
 
         # --------------------------------------------------------------------------------------------------------------#
-        self.sysmonitor_views = []
+        self.sysmonitor_views, self.frames = [], []
 
         for i in range(self.n_antennas):
             yx = f'{i:02b}'
@@ -67,7 +67,6 @@ class SystemMonitorPanel(QtWidgets.QMainWindow):
         self.lcd_queue.put(payload)
 
     def _poll_console_queue(self):
-
 
         while not self.lcd_queue.empty():
             payload = self.lcd_queue.get()
@@ -130,38 +129,36 @@ class SystemMonitorPanel(QtWidgets.QMainWindow):
 class SysMonitorView(QtWidgets.QGridLayout):
 
     def __init__(self, mainWindow, antenna_name):
-
         super().__init__()
 
-        self.setSpacing(6)
+        self.setHorizontalSpacing(24)
+        self.setVerticalSpacing(6)
 
         self.antenna_name = QtWidgets.QLabel(mainWindow)
         self.antenna_name.setText("<html><head/><body><p align=\"center\"><span style=\" font-size:18pt; font-weight:600;\">" + antenna_name.upper() + "</span></p></body></html>")
-        self.addWidget(self.antenna_name, 0, 0, 1, 2) ## CHECK THAT
+        self.addWidget(self.antenna_name, 0, 0, 1, 2)
 
         self.AntennaGrid = QtWidgets.QGridLayout()
-        self.AntennaGrid.setHorizontalSpacing(12)
-        self.AntennaGrid.setVerticalSpacing(12)
 
         self.sea_label = QtWidgets.QLabel()
         self.sea_label.setText("MER")
-        self.sea_label.setStyleSheet("""font-size: 14pt; text-align: center;""")
+        self.sea_label.setStyleSheet("""font-size: 16pt; font-weight:600""")
         self.sea_label.setAlignment(QtCore.Qt.AlignCenter)
         self.addWidget(self.sea_label, 1, 0, 1, 1)
 
         self.land_label = QtWidgets.QLabel()
         self.land_label.setText("TERRE")
-        self.land_label.setStyleSheet("""font-size: 14pt; text-align: center;""")
+        self.land_label.setStyleSheet("""font-size: 16pt; font-weight:600""")
         self.land_label.setAlignment(QtCore.Qt.AlignCenter)
         self.addWidget(self.land_label, 1, 1, 1, 1)
 
         self.pulselabel = QtWidgets.QLabel()
         self.pulselabel.setText("TIRIS pulse frequency")
-        self.land_label.setStyleSheet("""font-size: 12pt;""")
+        self.pulselabel.setStyleSheet("""font-size: 14pt;""")
         self.addWidget(self.pulselabel, 2, 0, 1, 1)
 
         self.land_lcds, self.sea_lcds, self.labels = [], [], []
-        labels = ["Hertz", "last 15 min.", "last hour", "last 24 hours"]
+        labels = ["Hertz", "15 min", "1 hour", "24 hours"]
 
         self.sea_lcds.append(QtWidgets.QLCDNumber())
         self.sea_lcds[0].setSegmentStyle(QtWidgets.QLCDNumber.Flat)
@@ -180,10 +177,8 @@ class SysMonitorView(QtWidgets.QGridLayout):
 
         self.detectlabel = QtWidgets.QLabel()
         self.detectlabel.setText("Recent detections per antenna")
-        self.detectlabel.setStyleSheet("""font-size: 12pt;""")
+        self.detectlabel.setStyleSheet("""font-size: 14pt;""")
         self.addWidget(self.detectlabel, 4, 0, 1, 1)
-
-        ## CHANGE LABEL COLORS DEPENDING ON ISSUES - IF NO DETECTION IN 1H, go orange, etc... AND RING AN ALARM IF TIRIS GOES TO 0 HZ
 
         for i in range(1, 4):
             self.sea_lcds.append(QtWidgets.QLCDNumber())
