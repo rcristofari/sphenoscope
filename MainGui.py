@@ -2,6 +2,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import qApp
 from AntennaPanel import AntennaPanel
 from SystemMonitorPanel import SystemMonitorPanel
+from ColonyMonitorPanel import ColonyMonitorPanel
 from SettingsWindow import SettingsWindow
 from AlarmsWindow import AlarmsWindow
 
@@ -121,7 +122,7 @@ class TabWidget(QtWidgets.QWidget):
         self.sysmonitor_tab.setBackgroundRole(QtGui.QPalette.Window)
         self.sysmonitor_tab.setAutoFillBackground(True)
 
-        self.colomonitor_tab = QtWidgets.QWidget()
+        self.colomonitor_tab = ColonyMonitorPanel(self.main, n_antennas=4)
         self.colomonitor_tab.setBackgroundRole(QtGui.QPalette.Window)
         self.colomonitor_tab.setAutoFillBackground(True)
 

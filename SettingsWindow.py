@@ -1,5 +1,6 @@
 from PyQt5 import QtCore, QtGui, QtWidgets, QtMultimedia
 from qtwidgets import Toggle, PasswordEdit
+import json
 import logging
 import paho.mqtt.client as mqtt
 
@@ -81,8 +82,6 @@ class MqttTab(QtWidgets.QWidget):
         super().__init__(parent)
         self.main = main
 
-        self.getMqttSettings()
-
         self.layout = QtWidgets.QGridLayout()
 
         self.mqtt_host_label = QtWidgets.QLabel(self)
@@ -120,61 +119,28 @@ class MqttTab(QtWidgets.QWidget):
 
         self.save_button = QtWidgets.QPushButton(self)
         self.save_button.setText("Save")
-        self.save_button.clicked.connect(self.saveMqttSetting)
+        self.save_button.clicked.connect(self.call_save)
         self.save_button.setEnabled(False)
         self.layout.addWidget(self.save_button, 4, 2, 1, 2)
 
         self.setLayout(self.layout)
 
-    def getMqttSettings(self):
-        self.mqtt_host = "127.0.0.1"
-        self.mqtt_port = 1883
-        self.mqtt_detections = "detections/all"
-        self.mqtt_status = "status/all"
+    def call_save(self):
+        self.main.network_conf["MQTT"]["host"] = self.mqtt_host_line.text()
+        self.main.network_conf["MQTT"]["port"] = self.mqtt_port_line.text()
+        self.main.network_conf["MQTT"]["detection_chanel"] = self.mqtt_dchanel_line.text()
+        self.main.network_conf["MQTT"]["status_chanel"] = self.mqtt_schanel_line.text()
 
-        with open("./conf/network.conf", 'r') as cnffile:
-            for line in cnffile:
-                if not line.startswith("#"):
-                    param, value = line.strip("\n").split("=")
-                    match param:
-                        case "mqtt_host":
-                            self.mqtt_host = value
-                        case "mqtt_port":
-                            try:
-                                self.mqtt_port = int(value)
-                            except ValueError:
-                                self.mqtt_port = 1883
-                        case "mqtt_detections":
-                            self.mqtt_detections = value
-                        case "mqtt_status":
-                            self.mqtt_status = value
-
-    def saveMqttSetting(self):
-        new_mqtt_host = self.mqtt_host_line.text()
-        new_mqtt_port = self.mqtt_port_line.text()
-        new_mqtt_detections = self.mqtt_dchanel_line.text()
-        new_mqtt_status = self.mqtt_schanel_line.text()
-        # Overwrite the configuration file with the new settings:
-        with open("./conf/network.conf", 'r') as cnffile:
-            all_lines = cnffile.readlines()
-        with open("./conf/network.conf", 'w') as cnffile:
-            for line in all_lines:
-                if not line.startswith("mqtt_"):
-                    cnffile.write(line)
-                else:
-                    param = line.split("=")[0]
-                    match param:
-                        case "mqtt_host":
-                            cnffile.write(f"mqtt_host={new_mqtt_host}\n")
-                        case "mqtt_port":
-                            cnffile.write(f"mqtt_port={new_mqtt_port}\n")
-                        case "mqtt_detections":
-                            cnffile.write(f"mqtt_detections={new_mqtt_detections}\n")
-                        case "mqtt_status":
-                            cnffile.write(f"mqtt_status={new_mqtt_status}\n")
+        json_obj = json.dumps(self.main.network_conf, indent=4)
+        with open(self.main.network_file, 'w') as f:
+            f.write(json_obj)
+        self.refresh_network_conf()
+        self.main.reset_mqtt_connexion()
         # Disable the Save button until a lineEdit is modified
         self.disableSave()
-        #log.info("MQTT settings changed by user.") #NOT WORKING YET
+
+    def refresh_network_conf(self):
+        pass
 
     def enableSave(self):
         self.save_button.setEnabled(True)
@@ -188,7 +154,6 @@ class MySQLTab(QtWidgets.QWidget):
     def __init__(self, main, parent=None):
         super().__init__(parent)
         self.main = main
-        self.getMySQLSettings()
 
         self.layout = QtWidgets.QGridLayout()
 
@@ -196,7 +161,6 @@ class MySQLTab(QtWidgets.QWidget):
         self.mysql_host_label.setText("MySQL Host")
         self.mysql_host_line = QtWidgets.QLineEdit(self)
         self.mysql_host_line.insert(self.main.network_conf["MYSQL"]["host"])
-        #self.mysql_host_line.insert(self.mysql_host)
         self.mysql_host_line.textChanged[str].connect(self.enableSave)
         self.layout.addWidget(self.mysql_host_label, 0, 0, 1, 1)
         self.layout.addWidget(self.mysql_host_line, 0, 1, 1, 3)
@@ -236,74 +200,30 @@ class MySQLTab(QtWidgets.QWidget):
 
         self.save_button = QtWidgets.QPushButton(self)
         self.save_button.setText("Save")
-        self.save_button.clicked.connect(self.saveMySQLSetting)
+        self.save_button.clicked.connect(self.call_save)
         self.save_button.setEnabled(False)
         self.layout.addWidget(self.save_button, 5, 2, 1, 2)
 
         self.setLayout(self.layout)
 
-    def getMySQLSettings(self):
-        self.mysql_host = "127.0.0.1"
-        self.mysql_port = 3306
-        self.mysql_usr = "root"
-        self.mysql_pwd = ""
-        self.mysql_db = "antavia_cro_new_testing"
+    def call_save(self):
+        self.main.network_conf["MYSQL"]["host"] = self.mysql_host_line.text()
+        self.main.network_conf["MYSQL"]["port"] = self.mysql_port_line.text()
+        self.main.network_conf["MYSQL"]["usr"] = self.mysql_user_line.text()
+        self.main.network_conf["MYSQL"]["pwd"] = self.mysql_pwd_line.text()
+        self.main.network_conf["MYSQL"]["db"] = self.mysql_schema_line.text()
 
-        with open("./conf/network.conf", 'r') as cnffile:
-            for line in cnffile:
-                if not line.startswith("#"):
-                    param, value = line.strip("\n").split("=")
-                    match param:
-                        case "mysql_host":
-                            self.mysql_host = value
-                        case "mysql_port":
-                            try:
-                                self.mysql_port = int(value)
-                            except ValueError:
-                                self.mysql_port = 3306
-                        case "mysql_usr":
-                            self.mysql_usr = value
-                        case "mysql_pwd":
-                            if value:
-                                self.mysql_pwd = value
-                            else:
-                                self.mysql_pwd = ""
-                        case "mysql_db":
-                            self.mysql_db = value
-
-    def saveMySQLSetting(self):
-        new_mysql_host = self.mysql_host_line.text()
-        new_mysql_port = self.mysql_port_line.text()
-        new_mysql_usr = self.mysql_user_line.text()
-        new_mysql_pwd = self.mysql_pwd_line.text()
-        new_mysql_db = self.mysql_schema_line.text()
-
-        # Overwrite the configuration file with the new settings:
-        with open("./conf/network.conf", 'r') as cnffile:
-            all_lines = cnffile.readlines()
-        with open("./conf/network.conf", 'w') as cnffile:
-            for line in all_lines:
-                if not line.startswith("mysql_"):
-                    cnffile.write(line)
-                else:
-                    param = line.split("=")[0]
-                    match param:
-                        case "mysql_host":
-                            cnffile.write(f"mysql_host={new_mysql_host}\n")
-                        case "mysql_port":
-                            cnffile.write(f"mysql_port={new_mysql_port}\n")
-                        case "mysql_usr":
-                            cnffile.write(f"mysql_detections={new_mysql_usr}\n")
-                        case "mysql_pwd":
-                            cnffile.write(f"mysql_status={new_mysql_pwd}\n")
-                        case "mysql_db":
-                            cnffile.write(f"mysql_db={new_mysql_db}\n")
-
+        json_obj = json.dumps(self.main.network_conf, indent=4)
+        with open(self.main.network_file, 'w') as f:
+            f.write(json_obj)
+        self.refresh_network_conf()
         self.main.reset_mysql_connexion()
-
         # Disable the Save button until a lineEdit is modified
         self.disableSave()
         #log.info("MySQL settings changed by user.") # NOT WORKING YET
+
+    def refresh_network_conf(self):
+        pass
 
     def enableSave(self):
         self.save_button.setEnabled(True)
@@ -312,95 +232,48 @@ class MySQLTab(QtWidgets.QWidget):
         self.save_button.setEnabled(False)
 
 
+# HANDLE FAILED MYSQL CONNECTION WITHOUT CRASHING
+
 class GeneralTab(QtWidgets.QWidget):
 
     def __init__(self, main, parent=None):
         super().__init__(parent)
         self.main = main
-        self.getMySQLSettings()
 
         self.layout = QtWidgets.QGridLayout()
 
         self.settings_legacy_label = QtWidgets.QLabel(self)
         self.settings_legacy_label.setText("Use Legacy database")
         self.settings_legacy_toggle = Toggle()
+        self.settings_legacy_toggle.setChecked(self.main.settings["legacy"])
         self.layout.addWidget(self.settings_legacy_label, 0, 0, 1, 1)
         self.layout.addWidget(self.settings_legacy_toggle, 0, 4, 1, 1)
 
+        self.settings_mute_label = QtWidgets.QLabel(self)
+        self.settings_mute_label.setText("Alarm mute timeout (min)")
+        self.settings_mute_spinbox = QtWidgets.QSpinBox(self)
+        self.layout.addWidget(self.settings_mute_label, 2, 0, 1, 1)
+        self.layout.addWidget(self.settings_mute_spinbox, 2, 4, 1, 1)
 
         self.save_button = QtWidgets.QPushButton(self)
         self.save_button.setText("Save")
-        self.save_button.clicked.connect(self.saveMySQLSetting)
+        self.save_button.clicked.connect(self.call_save)
         self.save_button.setEnabled(True)
         self.layout.addWidget(self.save_button, 5, 2, 1, 2)
 
-        #self.mysql_dstream_box = QtWidgets.QTextEdit(self)
-        #self.layout.addWidget(self.mysql_dstream_box, 6, 0, 1, 4)
-
         self.setLayout(self.layout)
 
-    def getMySQLSettings(self):
-        self.mysql_host = "127.0.0.1"
-        self.mysql_port = 3306
-        self.mysql_usr = "root"
-        self.mysql_pwd = ""
-        self.mysql_db = "antavia_cro_new_testing"
+    def refresh_general_settings(self):
+        pass
 
-        with open("./conf/network.conf", 'r') as cnffile:
-            for line in cnffile:
-                if not line.startswith("#"):
-                    param, value = line.strip("\n").split("=")
-                    match param:
-                        case "mysql_host":
-                            self.mysql_host = value
-                        case "mysql_port":
-                            try:
-                                self.mysql_port = int(value)
-                            except ValueError:
-                                self.mysql_port = 3306
-                        case "mysql_usr":
-                            self.mysql_usr = value
-                        case "mysql_pwd":
-                            if value:
-                                self.mysql_pwd = value
-                            else:
-                                self.mysql_pwd = ""
-                        case "mysql_db":
-                            self.mysql_db = value
+    def call_save(self):
+        self.main.settings["legacy"] = True if self.settings_legacy_toggle.checkState() == 2 else False
+        self.main.settings["mute_timeout"] = self.settings_mute_spinbox.value()
+        json_obj = json.dumps(self.main.settings, indent=4)
+        with open(self.main.settings_file, 'w') as f:
+            f.write(json_obj)
+        self.refresh_general_settings()
 
-    def saveMySQLSetting(self):
-        new_mysql_host = self.mysql_host_line.text()
-        new_mysql_port = self.mysql_port_line.text()
-        new_mysql_usr = self.mysql_user_line.text()
-        new_mysql_pwd = self.mysql_pwd_line.text()
-        new_mysql_db = self.mysql_schema_line.text()
-
-        # Overwrite the configuration file with the new settings:
-        with open("./conf/network.conf", 'r') as cnffile:
-            all_lines = cnffile.readlines()
-        with open("./conf/network.conf", 'w') as cnffile:
-            for line in all_lines:
-                if not line.startswith("mysql_"):
-                    cnffile.write(line)
-                else:
-                    param = line.split("=")[0]
-                    match param:
-                        case "mysql_host":
-                            cnffile.write(f"mysql_host={new_mysql_host}\n")
-                        case "mysql_port":
-                            cnffile.write(f"mysql_port={new_mysql_port}\n")
-                        case "mysql_usr":
-                            cnffile.write(f"mysql_detections={new_mysql_usr}\n")
-                        case "mysql_pwd":
-                            cnffile.write(f"mysql_status={new_mysql_pwd}\n")
-                        case "mysql_db":
-                            cnffile.write(f"mysql_db={new_mysql_db}\n")
-
-        self.main.reset_mysql_connexion()
-
-        # Disable the Save button until a lineEdit is modified
-        self.disableSave()
-        #log.info("MySQL settings changed by user.") # NOT WORKING YET
 
     def enableSave(self):
         self.save_button.setEnabled(True)

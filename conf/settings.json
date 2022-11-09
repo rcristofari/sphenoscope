@@ -1,3 +1,4 @@
 {
-    "legacy": false
+    "legacy": false,
+    "mute_timeout": 2
 }

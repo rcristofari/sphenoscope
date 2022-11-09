@@ -26,8 +26,6 @@ class MainApp(object):
         QtCore.QCoreApplication.setApplicationName('Sphenoscope')
 
         # Load MQTT and SQL parameters from conf file:
-        self.loadConfiguration() ## CHANGE THAT
-
         self.alarm_file = "./conf/alarms.json"
         self.network_file = "./conf/network.json"
         self.settings_file = "./conf/settings.json"
@@ -35,6 +33,7 @@ class MainApp(object):
         self.network_conf = self.load_configuration_json(self.network_file)
         self.settings = self.load_settings_json(self.settings_file)
 
+        #--------------------------------------------------------------------------------------------------------------#
         # Initialize the MQTT client system
         self.client = mqtt.Client()
         self.client.enable_logger(mqtt_log)
@@ -42,38 +41,51 @@ class MainApp(object):
         self.client.on_connect = self.on_connect
         self.client.on_disconnect = self.on_disconnect
         self.client.on_message = self.on_message
+        self.connect_to_mqtt_server(self.network_conf["MQTT"]["host"], int(self.network_conf["MQTT"]["port"]))
 
-        # Initialize the database connection:
-        print(f"Attempting connexion as {self.mysql_usr}")
+        #--------------------------------------------------------------------------------------------------------------#
+        # Initialize the MySQL database connection:
+        print(f"Attempting connexion as {self.network_conf['MYSQL']['usr']}")
         self.db = MysqlConnect(usr=self.network_conf["MYSQL"]["usr"], pwd=self.network_conf["MYSQL"]["pwd"], db=self.network_conf["MYSQL"]["db"], host=self.network_conf["MYSQL"]["host"], port=self.network_conf["MYSQL"]["port"], legacy=self.settings["legacy"])
         if self.db:
             self.mysql_connected = True
         else:
             self.mysql_connected = False
 
-
         # Define the place indices (relative to GUI frames)
-        self.gates = {"Bretelle Sud": 2, "Autoroute": 0, "Prado": 1, "Manchoduc": 3}
-        self.gate_order = {0: "Autoroute", 1: "Prado", 2: "Bretelle Sud", 3: "Manchoduc"}
+        self.gates = {"Bretelle Sud": 2,
+                      "Autoroute": 0,
+                      "Prado": 1,
+                      "Manchoduc": 3}
+        self.gate_order = {0: "Autoroute",
+                           1: "Prado",
+                           2: "Bretelle Sud",
+                           3: "Manchoduc"}
 
         #Antenna order in the DB (can be loaded directly from DB at init. too)
-        self.antennas = {1: "Bretelle Sud Mer", 2: "Bretelle Sud Terre", 3: "Autoroute Mer", 4: "Autoroute Terre", 5: "Manchoduc Mer", 6: "Manchoduc Terre", 7: "Prado Mer", 8: "Prado Terre"}
+        self.antennas = {1: "Bretelle Sud Mer",
+                         2: "Bretelle Sud Terre",
+                         3: "Autoroute Mer",
+                         4: "Autoroute Terre",
+                         5: "Manchoduc Mer",
+                         6: "Manchoduc Terre",
+                         7: "Prado Mer",
+                         8: "Prado Terre"}
 
         # Get alarms in use from MySql:
-        #all_alarms = self.db.fetchall("select * from alarms;")
         all_alarms = self.db.get_alarms()
-
         self.db_alarm_names, self.db_alarm_descriptions = [], []
         for a in all_alarms:
            self.db_alarm_names.append(a[1])
            self.db_alarm_descriptions.append(a[2])
         self.alarms = dict(zip(self.db_alarm_names, self.db_alarm_descriptions))
-
         self.alarm_conf = self.load_alarms_json(self.alarm_file, all_alarms)
 
         self.window = MainGui(self)
 
-        self.get_history_from_mysql()
+        # We retrieve the past <= 300 detections, add them to the processing queue
+        # and store their actual number (always 300 normally)
+        self.history_length = self.get_history_from_mysql()
 
     def app_is_exiting(self):
         if self.client.is_connected():
@@ -85,57 +97,16 @@ class MainApp(object):
         self.app_is_exiting()
         sys.exit(0)
 
-    def loadConfiguration(self):
-        # Default values:
-        self.mqtt_host = "127.0.0.1"
-        self.mqtt_port = 1883
-        self.mqtt_detections = "detections/all"
-        self.mqtt_status = "status/all"
-        self.mysql_host = "127.0.0.1"
-        self.mysql_port = 3306
-        self.mysql_usr = "root"
-        self.mysql_pwd = ""
-        self.mysql_db = "antavia_cro_new_testing"
-
-        with open("./conf/network.conf", 'r') as cnffile:
-            for line in cnffile:
-                if not line.startswith("#"):
-                    param, value = line.strip("\n").split("=")
-                    match param:
-                        case "mqtt_host":
-                            self.mqtt_host = value
-                        case "mqtt_port":
-                            try:
-                                self.mqtt_port = int(value)
-                            except ValueError:
-                                self.mqtt_port = 1883
-                        case "mqtt_detections":
-                            self.mqtt_detections = value
-                        case "mqtt_status":
-                            self.mqtt_status = value
-                        case "mysql_host":
-                            self.mysql_host = value
-                        case "mysql_port":
-                            try:
-                                self.mysql_port = int(value)
-                            except ValueError:
-                                self.mysql_port = 3306
-                        case "mysql_usr":
-                            self.mysql_usr = value
-                        case "mysql_pwd":
-                            if value:
-                                self.mysql_pwd = value
-                            else:
-                                self.mysql_pwd = ""
-                        case "mysql_db":
-                            self.mysql_db = value
-
+    #------------------------------------------------------------------------------------------------------------------#
+    # LOAD CONFIGURATION FILES
     def load_configuration_json(self, jsonfile):
         with open(jsonfile, 'r') as f:
             network_conf = json.load(f)
             return network_conf
 
     def load_alarms_json(self, jsonfile, all_alarms):
+        # This function reads in alarms from the json file,
+        # and fills in the missing data with default values
         with open(jsonfile, 'r') as f:
             alarm_conf = json.load(f)
             for item in alarm_conf:
@@ -143,62 +114,32 @@ class MainApp(object):
                     alarm_conf[item]["color"] = "#999999"
                 if "sound" not in alarm_conf[item] or not alarm_conf[item]["sound"] or not os.path.isfile(alarm_conf[item]["sound"]):
                     alarm_conf[item]["sound"] = "/home/robin/sphenoscope/resources/ding.wav"
-
         for a in all_alarms:
-            print(a)
             if a[1] not in alarm_conf:
                 alarm_conf[a[1]] = {"color": "#999999", "sound": "/home/robin/sphenoscope/resources/ding.wav"}
-
         updated_json = json.dumps(alarm_conf, indent=4)
         with open(jsonfile, 'w') as f:
             f.write(updated_json)
-        print(alarm_conf)
         return alarm_conf
 
     def load_settings_json(self, jsonfile):
+        # This function loads the general settings from the json file
         with open(jsonfile, 'r') as f:
             settings = json.load(f)
             if not settings["legacy"]:
                 settings["legacy"] = False
             else:
-                settings["legacy"] = False if settings["legacy"].upper() in ("FALSE", "F") else True
-
+                try:
+                    settings["legacy"] = False if settings["legacy"].upper() in ("FALSE", "F") else True
+                except AttributeError:
+                    pass
         updated_json = json.dumps(settings, indent=4)
         with open(jsonfile, 'w') as f:
             f.write(updated_json)
-        print(settings)
         return settings
 
-
-    def get_history_from_mysql(self):
-        # LEGACY (MIBE) MODE:
-        # query = "select d.description, d.date_arrivee, a.identifiant_transpondeur, a.nom, a.date_transpondage, a.sexe, a.son_suivi from animaux a, (select a.description, d.date_arrivee, d.animaux_id from detections d, antennes a where d.antenne_id = a.id order by d.date_arrivee desc limit 200) d where a.id = d.animaux_id;"
-        query = "SELECT d.description, d.dtime, b.rfid, b.name, b.rfid_date, b.sex, b.alarm FROM birds b, (SELECT a.description, d.dtime, d.rfid FROM detections d, antennas a WHERE d.antenna_id = a.id ORDER BY d.id DESC LIMIT 300) d WHERE b.rfid = d.rfid;"
-        result = self.db.fetchall(query)
-
-        if result:
-            for row in result:
-                if row[0].endswith("Terre"):
-                    passage = row[0][:-6].title()
-                    loc = "Terre"
-                else:
-                    passage = row[0][:-4].title()
-                    loc = "Mer"
-                t = row[1]
-                rfid = row[2]
-                if row[3].startswith("auto"):
-                    name = "auto"
-                else:
-                    name = row[3]
-                try:
-                    rfid_year = datetime.strftime(row[4], "%Y")
-                except TypeError:
-                    rfid_year = "1970"
-                sex = row[5]
-                alarm = row[6]
-                contents = [passage, loc, datetime.strftime(t, "%Y-%m-%d %H:%M:%S"), rfid, name, rfid_year, sex, alarm]
-                self.window.tab_widget.liveview_tab.write(contents)
-
+    #------------------------------------------------------------------------------------------------------------------#
+    # HANDLE MQTT CONNEXION
     def connect_to_mqtt_server(self, hostname, portnum):
         if self.client.is_connected():
             pass
@@ -217,6 +158,9 @@ class MainApp(object):
             pass
         self.client.loop_stop()
 
+    def reset_mqtt_connexion(self):
+        self.disconnect_from_mqtt_server()
+
     def on_connect(self, client, userdata, flags, rc):
         if rc == 0:
             log.info("Connection succeeded.")
@@ -225,8 +169,8 @@ class MainApp(object):
                 log.warning("Connection failed with error: %s", mqtt_rc_codes[rc])
             else:
                 log.warning("Connection failed with unknown error %d", rc)
-        client.subscribe(self.mqtt_detections)
-        client.subscribe(self.mqtt_status)
+        client.subscribe(self.network_conf["MQTT"]["detection_chanel"])
+        client.subscribe(self.network_conf["MQTT"]["status_chanel"])
         return
 
     def on_log(client, userdata, level, buf):
@@ -239,55 +183,20 @@ class MainApp(object):
     def on_message(self, client, userdata, msg):
         sentence = msg.payload.decode("UTF-8").strip("\n")
         print(sentence)
-
         if sentence.startswith("$RFID"):
             contents = self.parse_nmea(msg.payload)
             self.window.tab_widget.liveview_tab.write(contents)
-
         elif sentence.startswith("$HERTZ"):
             # We only refresh things if the monitor tab is active, to avoid slowing down the application
-            print(f"Current tab pointer: {self.window.tab_widget.tabs.currentWidget()}")
+            #print(f"Current tab pointer: {self.window.tab_widget.tabs.currentWidget()}")
             if isinstance(self.window.tab_widget.tabs.currentWidget(), SystemMonitorPanel.SystemMonitorPanel):
                 # we also refresh detection stats
                 contents = self.get_detection_stats(sentence)
                 # we forward the whole data to the monitor tab
                 self.window.tab_widget.sysmonitor_tab.write(contents)
 
-    def get_detection_stats(self, sentence):
-        line = sentence.split(",")
-        freqs = []
-        for i in range(8):
-            try:
-                freqs.append(float(line[i+1].strip("'").strip()))
-            except ValueError:
-                freqs.append(0)
-
-        before_15 = datetime.strftime(datetime.now() - timedelta(minutes=15), "%Y-%m-%d %H:%M:%S")
-        before_60 = datetime.strftime(datetime.now() - timedelta(minutes=60), "%Y-%m-%d %H:%M:%S")
-        before_24 = datetime.strftime(datetime.now() - timedelta(days=1), "%Y-%m-%d %H:%M:%S")
-        d_in_15 = self.db.fetchall(f"select antenna_id, count(rfid) from (select * from detections order by id desc limit 5000) as d where dtime > '{before_15}' group by antenna_id order by antenna_id;")
-        d_in_60 = self.db.fetchall(f"select antenna_id, count(rfid) from (select * from detections order by id desc limit 5000) as d where dtime > '{before_60}' group by antenna_id order by antenna_id;")
-        d_in_24 = self.db.fetchall(f"select antenna_id, count(rfid) from (select * from detections order by id desc limit 5000) as d where dtime > '{before_24}' group by antenna_id order by antenna_id;")
-
-        antenna_indices = [x+1 for x in range(8)]
-        contents = [[0]*8, [0]*8, [0]*8, [0]*8]
-        for x, y in enumerate(freqs):
-            contents[0][x] = y
-        if d_in_15:
-            for (x, y) in d_in_15:
-                contents[1][x-1] = y
-        if d_in_60:
-            for (x, y) in d_in_60:
-                contents[2][x-1] = y
-        if d_in_24:
-            for (x, y) in d_in_24:
-                contents[3][x-1] = y
-        return(contents)
-
     def parse_nmea(self, payload):
-
         sentence = payload.decode("UTF-8").strip("\n")
-
         if sentence.startswith("$RFID"):
             line = sentence.split(",")
             antenna = line[1]
@@ -312,9 +221,65 @@ class MainApp(object):
                 loc = "Mer"
             return [passage, loc, datetime.strftime(t, "%Y-%m-%d %H:%M:%S"), rfid, name, rfid_year, sex, alarm]
 
+    #------------------------------------------------------------------------------------------------------------------#
+    # HANDLE MYSQL CONNEXION
+
     def reset_mysql_connexion(self):
-        self.db.disconnect()
+        if self.db:
+            self.db.disconnect()
         self.db = MysqlConnect(usr=self.network_conf["MYSQL"]["usr"], pwd=self.network_conf["MYSQL"]["pwd"], db=self.network_conf["MYSQL"]["db"], host=self.network_conf["MYSQL"]["host"], port=self.network_conf["MYSQL"]["port"], legacy=self.settings["legacy"])
+
+    def get_detection_stats(self, sentence):
+        line = sentence.split(",")
+        freqs = []
+        for i in range(8):
+            try:
+                freqs.append(float(line[i+1].strip("'").strip()))
+            except ValueError:
+                freqs.append(0)
+        d_in_15, d_in_60, d_in_24 = self.db.get_detection_counts()
+        #antenna_indices = [x+1 for x in range(8)]
+        contents = [[0]*8, [0]*8, [0]*8, [0]*8]
+        for x, y in enumerate(freqs):
+            contents[0][x] = y
+        if d_in_15:
+            for (x, y) in d_in_15:
+                contents[1][x-1] = y
+        if d_in_60:
+            for (x, y) in d_in_60:
+                contents[2][x-1] = y
+        if d_in_24:
+            for (x, y) in d_in_24:
+                contents[3][x-1] = y
+        return(contents)
+
+    def get_history_from_mysql(self):
+        # This function gets the last 300 detections from the mysql database
+        result = self.db.get_detection_history()
+        if result:
+            for row in result:
+                if row[0].endswith("Terre"):
+                    passage = row[0][:-6].title()
+                    loc = "Terre"
+                else:
+                    passage = row[0][:-4].title()
+                    loc = "Mer"
+                t = row[1]
+                rfid = row[2]
+                if row[3].startswith("auto"):
+                    name = "auto"
+                else:
+                    name = row[3]
+                try:
+                    rfid_year = datetime.strftime(row[4], "%Y")
+                except TypeError:
+                    rfid_year = "1970"
+                sex = row[5]
+                alarm = row[6]
+                contents = [passage, loc, datetime.strftime(t, "%Y-%m-%d %H:%M:%S"), rfid, name, rfid_year, sex, alarm]
+                self.window.tab_widget.liveview_tab.write(contents)
+
+        return len(result) if result else 0
 
 class MysqlConnect(object):
 
@@ -379,7 +344,30 @@ class MysqlConnect(object):
 
     def get_alarms(self):
         if self.legacy_mode is False:
-            res = self.fetchall("SELECT * FROM alarms;")
+            query = "select * from alarms;"
         else:
-            res = self.fetchall("select row_number() over(order by class) as id, class, description from (select distinct(son_suivi) as class, 'unknown' as description from animaux where son_suivi is not null and son_suivi != '') as alarms;")
-        return res
+            query = "select row_number() over(order by class) as id, class, description from (select distinct(son_suivi) as class, 'unknown' as description from animaux where son_suivi is not null and son_suivi != '') as alarms;"
+        result = self.fetchall(query)
+        return result
+
+    def get_detection_history(self):
+        if self.legacy_mode is False:
+            query = "select d.description, d.dtime, b.rfid, b.name, b.rfid_date, b.sex, b.alarm from birds b, (select a.description, d.dtime, d.rfid from detections d, antennas a where d.antenna_id = a.id order by d.id desc LIMIT 300) d where b.rfid = d.rfid;"
+        else:
+            query = "select d.description, d.date_arrivee, a.identifiant_transpondeur, a.nom, a.date_transpondage, a.sexe, a.son_suivi from animaux a, (select a.description, d.date_arrivee, d.animaux_id from detections d, antennes a where d.antenne_id = a.id order by d.date_arrivee desc limit 300) d where a.id = d.animaux_id;"
+        result = self.fetchall(query)
+        return result
+
+    def get_detection_counts(self):
+        before_15 = datetime.strftime(datetime.now() - timedelta(minutes=15), "%Y-%m-%d %H:%M:%S")
+        before_60 = datetime.strftime(datetime.now() - timedelta(minutes=60), "%Y-%m-%d %H:%M:%S")
+        before_24 = datetime.strftime(datetime.now() - timedelta(days=1), "%Y-%m-%d %H:%M:%S")
+        if self.legacy_mode is False:
+            d_in_15 = self.fetchall(f"select antenna_id, count(rfid) from (select * from detections order by id desc limit 5000) as d where dtime > '{before_15}' group by antenna_id order by antenna_id;")
+            d_in_60 = self.fetchall(f"select antenna_id, count(rfid) from (select * from detections order by id desc limit 5000) as d where dtime > '{before_60}' group by antenna_id order by antenna_id;")
+            d_in_24 = self.fetchall(f"select antenna_id, count(rfid) from (select * from detections order by id desc limit 5000) as d where dtime > '{before_24}' group by antenna_id order by antenna_id;")
+        else:
+            d_in_15 = self.fetchall(f"select antenne_id, count(animaux_id) from (select * from detections order by id desc limit 5000) as d where date_arrivee > '{before_15}' group by antenne_id order by antenne_id;")
+            d_in_60 = self.fetchall(f"select antenne_id, count(animaux_id) from (select * from detections order by id desc limit 5000) as d where date_arrivee > '{before_60}' group by antenne_id order by antenne_id;")
+            d_in_24 = self.fetchall(f"select antenne_id, count(animaux_id) from (select * from detections order by id desc limit 5000) as d where date_arrivee > '{before_24}' group by antenne_id order by antenne_id;")
+        return (d_in_15, d_in_60, d_in_24)
