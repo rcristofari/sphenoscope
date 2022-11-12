@@ -1,0 +1,1 @@
+*SPHENOSCOPE* is a visualisation interface for RFID data, designed to the King penguin monitoring system in the Baie du Marin on Possession Island, Crozet Archipelago. It is essentially a custom MQTT client, with function to ring alarms for specific birds, monitor the electronic system behind it, and display information about the state of the colony.

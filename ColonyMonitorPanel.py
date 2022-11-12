@@ -26,14 +26,13 @@ class ColonyMonitorPanel(QtWidgets.QMainWindow):
         self.MainGrid.setVerticalSpacing(36)
 
         # --------------------------------------------------------------------------------------------------------------#
-        self.colomonitor_views, self.frames = [], []
 
-        for i in range(self.__n_antennas):
-            yx = f'{i:02b}'
-            y = int(yx[0])
-            x = int(yx[1])
-            self.colomonitor_views.append(MplCanvas(self, width=5, height=4, dpi=100))
-            self.MainGrid.addWidget(self.colomonitor_views[i], y, x, 1, 1)
+        self.in_colony_graph = MplCanvas(self, width=5, height=4, dpi=100)
+        self.MainGrid.addWidget(self.in_colony_graph, 0, 0, 1, 1)
+
+        self.transitions_graph = MplCanvas(self, width=5, height=4, dpi=100)
+        self.MainGrid.addWidget(self.transitions_graph, 1, 0, 1, 1)
+
 
         # --------------------------------------------------------------------------------------------------------------#
         self.verticalLayout.addLayout(self.MainGrid)
@@ -48,7 +47,3 @@ class MplCanvas(FigureCanvas):
         self.axes = fig.add_subplot(111)
         super(MplCanvas, self).__init__(fig)
 
-# Penguins inside the colony (males, females)
-# Daily in (males, females)
-# Daily out (males, females)
-# Average time penguins inside have been in (males, females)

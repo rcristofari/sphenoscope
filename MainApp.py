@@ -281,6 +281,8 @@ class MainApp(object):
 
         return len(result) if result else 0
 
+
+## HANDLE FAILURE TO CONNECT - SEND MESSAGE AND PROCEED W/O CRASHING
 class MysqlConnect(object):
 
     def __init__(self, usr, pwd, host, db, port, legacy):
@@ -292,7 +294,7 @@ class MysqlConnect(object):
         self.__port = int(port)
         self.db = None
         self.__cursor = None
-        self.connect()
+        self.connect() ### --> one way is to remove this from __init__ to allow it to return a separate value
 
     def connect(self):
         try:

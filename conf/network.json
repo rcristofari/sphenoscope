@@ -2,7 +2,7 @@
     "MYSQL": {
         "host": "127.0.0.1",
         "port": "3306",
-        "db": "antavia_cro_new_testing",
+        "db": "antavia_cro_v2",
         "usr": "root",
         "pwd": ""
     },
