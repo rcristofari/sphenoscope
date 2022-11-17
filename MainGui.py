@@ -67,7 +67,7 @@ class MainGui(QtWidgets.QMainWindow):
         #--------------------------------------------------------------------------------------------------------------#
         # Add status bar
         self.statusbar = QtWidgets.QStatusBar()
-        self.statusbar.showMessage("Work in progress")
+        self.statusbar.showMessage(self.main.status_message)
         self.setStatusBar(self.statusbar)
 
         self.show()

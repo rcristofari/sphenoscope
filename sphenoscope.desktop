@@ -1,0 +1,9 @@
+#Copy this file to /usr/share/applications/ and make it executable
+[Desktop Entry]
+Encoding=UTF-8
+Version=1.0
+Type=Application
+Terminal=true
+Exec=/home/robin/sphenoscope/sphenoscope_launcher.sh
+Name=Sphenoscope
+Icon=python3

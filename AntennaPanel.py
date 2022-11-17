@@ -2,7 +2,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 #from playsound import playsound
 #from play_sounds import play_file
 from preferredsoundplayer import *
-import queue, random, time
+import queue, random, time, os
 
 
 class AntennaPanel(QtWidgets.QMainWindow):
@@ -64,7 +64,7 @@ class AntennaPanel(QtWidgets.QMainWindow):
                     self.antenna_views[self.main.gates[payload[0]]].display_antenna("Terre", detection)
                 # Insert the detection in the main tableview
                 self.antenna_views[self.main.gates[payload[0]]].insert_detection(detection)
-                print(detection)
+                #print(detection)
 
 class BlinkingTextBox(QtWidgets.QTextEdit):
     def __init__(self, parent=None, land_or_sea="land"):
@@ -190,12 +190,17 @@ class AntennaView(QtWidgets.QGridLayout):
         self.setRowStretch(1, 1)
         self.setRowStretch(2, 10)
 
+        self.rfid_table.doubleClicked.connect(self.open_sphenotron)
+
     # Insert a new detection in the TableView:
     def insert_detection(self, detection):
         # If this detection is a new penguin or the same penguin on another antenna:
         if self.rfid_table.item(0, 0) is None or detection[3] != self.rfid_table.item(0, 3).text() or detection[0] != self.rfid_table.item(0, 0).text():
             self.rfid_table.insertRow(0)
             for i, item in enumerate(detection):
+                if i == 4 or i == 6:
+                    if not item or item == "None":
+                        item = ""
                 self.rfid_table.setItem(0, i, QtWidgets.QTableWidgetItem(str(item)))
                 self.rfid_table.item(0, i).setTextAlignment(QtCore.Qt.AlignCenter)
             self.rfid_table.item(0, 0).setBackground(QtGui.QColor(self.colors[detection[0]]))
@@ -266,3 +271,11 @@ class AntennaView(QtWidgets.QGridLayout):
 
     def get_mute_state(self):
         return (self.__mute_state, self.__mute_time)
+
+    def open_sphenotron(self):
+        for idx in self.rfid_table.selectionModel().selectedIndexes():
+            row_number = idx.row()
+            item = self.rfid_table.item(row_number, 3).text()
+            cmd = f"cd /home/robin/sphenotron/ ; python3 sphenotron_main.py '{item}'"
+            print(cmd)
+            os.system(cmd)

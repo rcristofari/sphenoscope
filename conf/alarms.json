@@ -1,7 +1,7 @@
 {
     "CAPTURE": {
-        "color": "#57e389",
-        "sound": "/home/robin/sphenoscope/resources/whistle.mp3"
+        "color": "#e01b24",
+        "sound": "/home/robin/sphenoscope/resources/ding.wav"
     },
     "STALK": {
         "color": "#f5c211",

@@ -33,24 +33,35 @@ class MainApp(object):
         self.network_conf = self.load_configuration_json(self.network_file)
         self.settings = self.load_settings_json(self.settings_file)
 
+        # Status bar message:
+        self.status_message = ""
+
         #--------------------------------------------------------------------------------------------------------------#
         # Initialize the MQTT client system
         self.client = mqtt.Client()
         self.client.enable_logger(mqtt_log)
         self.client.on_log = self.on_log
-        self.client.on_connect = self.on_connect
-        self.client.on_disconnect = self.on_disconnect
-        self.client.on_message = self.on_message
-        self.connect_to_mqtt_server(self.network_conf["MQTT"]["host"], int(self.network_conf["MQTT"]["port"]))
+        try:
+            self.client.on_connect = self.on_connect
+            self.client.on_disconnect = self.on_disconnect
+            self.client.on_message = self.on_message
+            self.connect_to_mqtt_server(self.network_conf["MQTT"]["host"], int(self.network_conf["MQTT"]["port"]))
+            self.status_message += "MQTT data stream established"
+        except ConnectionRefusedError:
+            print("MQTT not connected.")
+            self.status_message += "FAILED TO CONNECT TO MQTT DATA STREAM"
 
         #--------------------------------------------------------------------------------------------------------------#
         # Initialize the MySQL database connection:
         print(f"Attempting connexion as {self.network_conf['MYSQL']['usr']}")
         self.db = MysqlConnect(usr=self.network_conf["MYSQL"]["usr"], pwd=self.network_conf["MYSQL"]["pwd"], db=self.network_conf["MYSQL"]["db"], host=self.network_conf["MYSQL"]["host"], port=self.network_conf["MYSQL"]["port"], legacy=self.settings["legacy"])
-        if self.db:
+        status = self.db.connect()
+        if status == 0:
             self.mysql_connected = True
+            self.status_message += " | MySQL connexion established"
         else:
             self.mysql_connected = False
+            self.status_message += " | MYSQL NOT CONNECTED"
 
         # Define the place indices (relative to GUI frames)
         self.gates = {"Bretelle Sud": 2,
@@ -73,11 +84,12 @@ class MainApp(object):
                          8: "Prado Terre"}
 
         # Get alarms in use from MySql:
-        all_alarms = self.db.get_alarms()
+        all_alarms = self.db.get_alarms() if self.mysql_connected else []
         self.db_alarm_names, self.db_alarm_descriptions = [], []
-        for a in all_alarms:
-           self.db_alarm_names.append(a[1])
-           self.db_alarm_descriptions.append(a[2])
+        if self.mysql_connected:
+            for a in all_alarms:
+                self.db_alarm_names.append(a[1])
+                self.db_alarm_descriptions.append(a[2])
         self.alarms = dict(zip(self.db_alarm_names, self.db_alarm_descriptions))
         self.alarm_conf = self.load_alarms_json(self.alarm_file, all_alarms)
 
@@ -85,7 +97,8 @@ class MainApp(object):
 
         # We retrieve the past <= 300 detections, add them to the processing queue
         # and store their actual number (always 300 normally)
-        self.history_length = self.get_history_from_mysql()
+
+        self.history_length = self.get_history_from_mysql() if self.mysql_connected else 0
 
     def app_is_exiting(self):
         if self.client.is_connected():
@@ -294,21 +307,25 @@ class MysqlConnect(object):
         self.__port = int(port)
         self.db = None
         self.__cursor = None
-        self.connect() ### --> one way is to remove this from __init__ to allow it to return a separate value
 
     def connect(self):
         try:
             self.db = pymysql.connect(host=self.__host, user=self.__usr, passwd=self.__pwd, db=self.dbname, port=self.__port)
-            self.__cursor = self.db.cursor()
-            if self.db.open:
-                logging.info(f"Successfully established connection to {self.dbname} on {self.__host}")
-            else:
-                logging.error(f"No connexion to {self.dbname} on {self.__host}")
-        except pymysql.OperationalError:
+        except pymysql.err.OperationalError:
             logging.exception(f"Failed to connect to {self.__host}")
+            return 1
+
+        if self.db.open:
+            self.__cursor = self.db.cursor()
+            logging.info(f"Successfully established connection to {self.dbname} on {self.__host}")
+            return 0
+        else:
+            logging.error(f"No connexion to {self.dbname} on {self.__host}")
+            return 1
 
     def disconnect(self):
-        self.db.close()
+        if self.db.open:
+            self.db.close()
 
     def _reconnect(func):
         @wraps(func)
