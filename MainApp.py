@@ -23,7 +23,7 @@ class MainApp(object):
         signal.signal(signal.SIGINT, self._sigint_handler)
 
         # load any available persistent application settings
-        QtCore.QCoreApplication.setApplicationName('Sphenoscope')
+        QtCore.QCoreApplication.setApplicationName('sphenoscope')
 
         # Load MQTT and SQL parameters from conf file:
         self.alarm_file = "./conf/alarms.json"

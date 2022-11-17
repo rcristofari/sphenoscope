@@ -1,9 +1,9 @@
-#Copy this file to /usr/share/applications/ and make it executable
+# Copy this file to /usr/share/applications/ and make it executable
+# Copy the sphenoscope.svg file to /usr/share/icons/hicolor/scalable/apps/
 [Desktop Entry]
-Encoding=UTF-8
 Version=1.0
 Type=Application
 Terminal=true
 Exec=/home/robin/sphenoscope/sphenoscope_launcher.sh
 Name=Sphenoscope
-Icon=python3
+Icon=/usr/share/icons/hicolor/scalable/apps/sphenoscope.svg
